@@ -7,11 +7,15 @@ from dotenv import load_dotenv
 from bson import ObjectId
 from urllib.parse import quote
 import os, uuid, random
+import dns.resolver
 
 # ---------------- INIT ----------------
 app = Flask(__name__)
 CORS(app)
 load_dotenv()
+
+dns.resolver.default_resolver = dns.resolver.Resolver(configure=False)
+dns.resolver.default_resolver.nameservers = ["8.8.8.8", "8.8.4.4"]
 
 # ---------------- MongoDB ----------------
 client = MongoClient(os.getenv("DB_HOST"), serverSelectionTimeoutMS=5000)
