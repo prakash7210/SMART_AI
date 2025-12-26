@@ -1,0 +1,23 @@
+.env
+# ===== Dependencies =====
+node_modules/
+
+# ===== Build output =====
+build/
+dist/
+
+# ===== Environment files =====
+.env
+.env.*
+!.env.example
+
+# ===== Logs =====
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===== OS / Editor =====
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

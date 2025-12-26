@@ -1,0 +1,14 @@
+flask
+flask-cors
+gunicorn
+huggingface-hub
+openai-whisper
+numpy
+torch
+torchaudio
+pymongo
+dnspython
+Pillow
+requests
+dotenv
+python-dotenv
