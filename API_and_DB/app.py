@@ -8,11 +8,12 @@ from bson import ObjectId
 from urllib.parse import quote
 import os, uuid, random
 import dns.resolver
-
 # ---------------- INIT ----------------
 app = Flask(__name__)
 CORS(app)
 load_dotenv()
+
+
 
 dns.resolver.default_resolver = dns.resolver.Resolver(configure=False)
 dns.resolver.default_resolver.nameservers = ["8.8.8.8", "8.8.4.4"]
@@ -26,6 +27,8 @@ OUTPUTS = "outputs"
 os.makedirs(OUTPUTS, exist_ok=True)
 
 HF_TOKEN = os.getenv("SECRET_KEY")
+
+
 
 # ---------------- Lazy HF Clients ----------------
 def get_text_client():
