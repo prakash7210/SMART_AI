@@ -33,7 +33,7 @@ HF_TOKEN = os.getenv("SECRET_KEY")
 # ---------------- Lazy HF Clients ----------------
 def get_text_client():
     return InferenceClient(
-        model="mistralai/Mixtral-8x7B-Instruct-v0.1",
+        model="mistralai/Mistral-7B-Instruct-v0.3",
         token=HF_TOKEN
     )
 
