@@ -8,27 +8,34 @@ from bson import ObjectId
 from urllib.parse import quote
 import os, uuid, random
 import dns.resolver
+
 # ---------------- INIT ----------------
 app = Flask(__name__)
 CORS(app)
 load_dotenv()
 
-
-
+# Fix DNS issue in cloud
 dns.resolver.default_resolver = dns.resolver.Resolver(configure=False)
 dns.resolver.default_resolver.nameservers = ["8.8.8.8", "8.8.4.4"]
 
+# ---------------- ENV ----------------
+DB_HOST = os.getenv("DB_HOST")
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+if not DB_HOST or not HF_TOKEN:
+    raise RuntimeError("❌ Environment variables not set")
+
 # ---------------- MongoDB ----------------
-client = MongoClient(os.getenv("DB_HOST"), serverSelectionTimeoutMS=5000)
+client = MongoClient(DB_HOST, serverSelectionTimeoutMS=5000)
 db = client["GEN"]
 collection = db["messages"]
 
+# Test DB connection
+client.admin.command("ping")
+
+# ---------------- FILES ----------------
 OUTPUTS = "outputs"
 os.makedirs(OUTPUTS, exist_ok=True)
-
-HF_TOKEN = os.getenv("SECRET_KEY")
-
-
 
 # ---------------- Lazy HF Clients ----------------
 def get_text_client():
@@ -47,17 +54,20 @@ def get_image_client():
 @app.route("/text-to-text", methods=["POST"])
 def text_to_text():
     question = request.json.get("prompt")
+    if not question:
+        return jsonify({"error": "Prompt is empty"}), 400
 
-    client = get_text_client()
-    completion = client.chat_completion(
-        messages=[{"role": "user", "content": question}],
-        max_tokens=120
-    )
+    try:
+        client = get_text_client()
+        answer = client.text_generation(
+            question,
+            max_new_tokens=120,
+            temperature=0.7
+        )
+        return jsonify({"question": question, "answer": answer})
 
-    return jsonify({
-        "question": question,
-        "answer": completion.choices[0].message["content"]
-    })
+    except Exception as e:
+        return jsonify({"error": "HF model error", "details": str(e)}), 500
 
 # ---------------- TEXT → IMAGE ----------------
 @app.route("/text-to-image", methods=["POST"])
@@ -115,8 +125,11 @@ def get_chats():
 
 @app.route("/get-chat/<chat_id>")
 def get_chat(chat_id):
-    chat = collection.find_one({"_id": ObjectId(chat_id)})
-    return jsonify(chat["messages"])
+    try:
+        chat = collection.find_one({"_id": ObjectId(chat_id)})
+        return jsonify(chat["messages"])
+    except Exception:
+        return jsonify([])
 
 # ---------------- DELETE CHAT ----------------
 @app.route("/delete-chat/<chat_id>", methods=["DELETE"])
@@ -127,8 +140,8 @@ def delete_chat(chat_id):
 # ---------------- HEALTH ----------------
 @app.route("/")
 def home():
-    return {"status": "Flask API running (low memory)"}
+    return {"status": "Flask API running (Render)"}
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
-    app.run(debug=False)
+    app.run(debug=True)
