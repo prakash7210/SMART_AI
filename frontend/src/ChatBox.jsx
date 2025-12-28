@@ -29,7 +29,7 @@ function ChatBox() {
   }, [messages, generating]);
 
   const openChat = async (chat) => {
-    const res = await fetch(`http://localhost:5000/get-chat/${chat.id}`);
+    const res = await fetch(`https://smart-ai-c5nt.onrender.com/get-chat/${chat.id}`);
     const data = await res.json();
 
     // convert backend messages → frontend format
@@ -68,8 +68,8 @@ function ChatBox() {
     setMessages((prev) => [...prev, { type: "user", text: input }]);
 
     const endpoint = isImageMode
-      ? "http://localhost:5000/text-to-image"
-      : "http://localhost:5000/text-to-text";
+      ? "https://smart-ai-c5nt.onrender.com/text-to-image"
+      : "https://smart-ai-c5nt.onrender.com/text-to-text";
 
     let savedResponse = ""; // ✅ store response safely
 
@@ -96,7 +96,7 @@ function ChatBox() {
       }
 
       // ✅ SAVE CHAT (NOW WORKS)
-      const resSave = await fetch("http://localhost:5000/save-chat", {
+      const resSave = await fetch("https://smart-ai-c5nt.onrender.com/save-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
