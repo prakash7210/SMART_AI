@@ -92,12 +92,19 @@ def text_to_image():
 # ---------------- SAVE CHAT ----------------
 @app.route("/save-chat", methods=["POST"])
 def save_chat():
-    data = request.json
+    data = request.json or {}
+
+    prompt = data.get("prompt")
+    response = data.get("response")
+    mode = data.get("mode", "text")
     chat_id = data.get("chat_id")
 
+    if not prompt or not response:
+        return jsonify({"error": "Missing prompt or response"}), 400
+
     messages = [
-        {"role": "user", "type": "text", "content": data["prompt"]},
-        {"role": "bot", "type": data["mode"], "content": data["response"]}
+        {"role": "user", "type": "text", "content": prompt},
+        {"role": "bot", "type": mode, "content": response}
     ]
 
     if chat_id:
@@ -108,12 +115,13 @@ def save_chat():
         return jsonify({"chat_id": chat_id})
 
     result = collection.insert_one({
-        "title": data["prompt"][:30],
+        "title": prompt[:30],
         "messages": messages,
         "created_at": datetime.utcnow()
     })
 
     return jsonify({"chat_id": str(result.inserted_id)})
+
 
 # ---------------- GET CHATS ----------------
 @app.route("/get-chats")
