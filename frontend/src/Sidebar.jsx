@@ -4,7 +4,7 @@ function Sidebar({ onSelect, onNewChat, onDelete }) {
   const [history, setHistory] = useState([]);
 
   const loadHistory = () => {
-    fetch("http://localhost:5000/get-chats")
+    fetch("https://smart-ai-c5nt.onrender.com/get-chats")
       .then((res) => res.json())
       .then((data) => setHistory(data));
   };
@@ -14,7 +14,7 @@ function Sidebar({ onSelect, onNewChat, onDelete }) {
   }, []);
 
   const deleteChat = async (id) => {
-    await fetch(`http://localhost:5000/delete-chat/${id}`, {
+    await fetch(`https://smart-ai-c5nt.onrender.com/delete-chat/${id}`, {
       method: "DELETE",
     });
     loadHistory(); // refresh sidebar
