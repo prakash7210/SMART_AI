@@ -1,7 +1,7 @@
 import { useState , useRef, useEffect} from "react";
 import Message from "./Message";
 import ToggleSwitch from "./ToggleSwitch";
-import "./chat.css";
+import "./Chat.css";
 import Sidebar from "./Sidebar";
 import LoadingDots from "./LoadingDots";
 
