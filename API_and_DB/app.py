@@ -1,127 +1,97 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-from huggingface_hub import InferenceClient
 from pymongo import MongoClient
 from datetime import datetime
 from dotenv import load_dotenv
 from bson import ObjectId
 from urllib.parse import quote
-import os, uuid, random
-import dns.resolver
+import os, random, requests, dns.resolver
 
 # ---------------- INIT ----------------
 app = Flask(__name__)
 CORS(app)
 load_dotenv()
 
-# Fix DNS issue in cloud
 dns.resolver.default_resolver = dns.resolver.Resolver(configure=False)
 dns.resolver.default_resolver.nameservers = ["8.8.8.8", "8.8.4.4"]
 
 # ---------------- ENV ----------------
 DB_HOST = os.getenv("DB_HOST")
-HF_TOKEN = os.getenv("HF_TOKEN")
-
-if not DB_HOST or not HF_TOKEN:
-    raise RuntimeError("❌ Environment variables not set")
+if not DB_HOST:
+    raise RuntimeError("Missing DB_HOST")
 
 # ---------------- MongoDB ----------------
-client = MongoClient(DB_HOST, serverSelectionTimeoutMS=5000)
+client = MongoClient(DB_HOST)
 db = client["GEN"]
 collection = db["messages"]
 
-# Test DB connection
-client.admin.command("ping")
-
-# ---------------- FILES ----------------
-OUTPUTS = "outputs"
-os.makedirs(OUTPUTS, exist_ok=True)
-
-# ---------------- Lazy HF Clients ----------------
-def get_text_client():
-    return InferenceClient(
-        model="mistralai/Mistral-7B-Instruct-v0.3",
-        token=HF_TOKEN
-    )
-
-def get_image_client():
-    return InferenceClient(
-        model="stabilityai/sdxl-turbo",
-        token=HF_TOKEN
-    )
-
-# ---------------- TEXT → TEXT ----------------
+# ---------------- TEXT → TEXT (GUARANTEED) ----------------
 @app.route("/text-to-text", methods=["POST"])
 def text_to_text():
-    question = request.json.get("prompt")
-    if not question:
-        return jsonify({"error": "Prompt is empty"}), 400
+    prompt = request.json.get("prompt", "").strip()
+    if not prompt:
+        return jsonify({"answer": ""})
 
     try:
-        client = get_text_client()
-        answer = client.text_generation(
-            question,
-            max_new_tokens=120,
-            temperature=0.7
-        )
-        return jsonify({"question": question, "answer": answer})
+        url = f"https://text.pollinations.ai/{quote(prompt)}"
+        r = requests.get(url, timeout=30)
+
+        if r.status_code == 200:
+            return jsonify({"answer": r.text})
+
+        return jsonify({"answer": "❌ Text service unavailable"})
 
     except Exception as e:
-        return jsonify({"error": "HF model error", "details": str(e)}), 500
+        print("TEXT ERROR:", e)
+        return jsonify({"answer": "❌ AI error"})
 
 # ---------------- TEXT → IMAGE ----------------
 @app.route("/text-to-image", methods=["POST"])
 def text_to_image():
-    prompt = request.json.get("prompt")
-    seed = random.randint(1, 1_000_000)
+    prompt = request.json.get("prompt", "")
+    seed = random.randint(1, 999999)
 
-    try:
-        image_client = get_image_client()
-        image = image_client.text_to_image(prompt, seed=seed)
-
-        path = f"{OUTPUTS}/{uuid.uuid4()}.png"
-        image.save(path)
-        return send_file(path, mimetype="image/png")
-
-    except Exception:
-        return jsonify({
-            "warning": "HF busy – fallback used",
-            "image_url": f"https://image.pollinations.ai/prompt/{quote(prompt)}?seed={seed}"
-        })
+    return jsonify({
+        "image_url": f"https://image.pollinations.ai/prompt/{quote(prompt)}?seed={seed}"
+    })
 
 # ---------------- SAVE CHAT ----------------
 @app.route("/save-chat", methods=["POST"])
 def save_chat():
-    data = request.json or {}
+    try:
+        data = request.json or {}
 
-    prompt = data.get("prompt")
-    response = data.get("response")
-    mode = data.get("mode", "text")
-    chat_id = data.get("chat_id")
+        prompt = data.get("prompt", "")
+        response = data.get("response", "")
+        mode = data.get("mode", "text")
+        chat_id = data.get("chat_id")
 
-    if not prompt or not response:
-        return jsonify({"error": "Missing prompt or response"}), 400
+        if not prompt or not response:
+            return jsonify({"error": "Invalid data"}), 400
 
-    messages = [
-        {"role": "user", "type": "text", "content": prompt},
-        {"role": "bot", "type": mode, "content": response}
-    ]
+        messages = [
+            {"role": "user", "type": "text", "content": prompt},
+            {"role": "bot", "type": mode, "content": response}
+        ]
 
-    if chat_id:
-        collection.update_one(
-            {"_id": ObjectId(chat_id)},
-            {"$push": {"messages": {"$each": messages}}}
-        )
-        return jsonify({"chat_id": chat_id})
+        if chat_id:
+            collection.update_one(
+                {"_id": ObjectId(chat_id)},
+                {"$push": {"messages": {"$each": messages}}}
+            )
+            return jsonify({"chat_id": chat_id})
 
-    result = collection.insert_one({
-        "title": prompt[:30],
-        "messages": messages,
-        "created_at": datetime.utcnow()
-    })
+        result = collection.insert_one({
+            "title": prompt[:30],
+            "messages": messages,
+            "created_at": datetime.utcnow()
+        })
 
-    return jsonify({"chat_id": str(result.inserted_id)})
+        return jsonify({"chat_id": str(result.inserted_id)})
 
+    except Exception as e:
+        print("SAVE ERROR:", e)
+        return jsonify({"error": "Save failed"}), 500
 
 # ---------------- GET CHATS ----------------
 @app.route("/get-chats")
@@ -148,8 +118,8 @@ def delete_chat(chat_id):
 # ---------------- HEALTH ----------------
 @app.route("/")
 def home():
-    return {"status": "Flask API running (Render)"}
+    return {"status": "Flask API running (text guaranteed)"}
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=False)
