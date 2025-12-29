@@ -96,7 +96,7 @@ function ChatBox() {
       }
 
       // ✅ SAVE CHAT (NOW WORKS)
-      const resSave = await fetch("https://smart-ai-c5nt.onrender.com/save-chat", {
+      const resSave = fetch("https://smart-ai-c5nt.onrender.com/save-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
