@@ -52,7 +52,7 @@ def text_to_image():
     seed = random.randint(1, 999999)
 
     return jsonify({
-        "image_url": f"https://image.pollinations.ai/prompt/{quote(prompt)}?seed={seed}"
+        "image_url": f"https://image.pollinations.ai/prompt/{quote(prompt)}"
     })
 
 # ---------------- SAVE CHAT ----------------
